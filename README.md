@@ -1,5 +1,10 @@
 # Find Similar Events — Kalshi ↔ Polymarket Market Matcher
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
+[![Built with Sentence-BERT](https://img.shields.io/badge/NLP-Sentence--BERT-orange.svg)](https://www.sbert.net/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
+
 Find the **same real-world event listed on both [Kalshi](https://kalshi.com) and [Polymarket](https://polymarket.com)**. Prediction markets often list identical questions (elections, sports, economics, crypto) on different platforms at *different prices*. This tool automatically collects every open market from both platforms and uses semantic similarity (Sentence-BERT) to match them up — the starting point for cross-platform analysis and arbitrage research.
 
 > **Example output:** a single run matched markets like *"Will Fernando Haddad win the 2026 Brazilian presidential election?"* on Kalshi to the identical Polymarket question with a 1.000 similarity score.
@@ -140,6 +145,16 @@ A real run produces near-perfect matches, for example:
 
 - Python 3.9+
 - See `requirements.txt` (pandas, numpy, scikit-learn, sentence-transformers, nltk, cryptography, py-clob-client, …)
+
+## Contributing
+
+Contributions are welcome! Ideas that would help:
+
+- Add more platforms (PredictIt, Manifold, etc.)
+- Smarter matching (entity/date extraction, blocking, embeddings other than MiniLM)
+- A fee- and slippage-aware "edge" calculator on top of the matched pairs
+
+Open an issue to discuss, or fork and send a PR.
 
 ## License
 
