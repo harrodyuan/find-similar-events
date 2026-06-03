@@ -4,6 +4,36 @@ import os
 from datetime import datetime
 import sys
 
+
+def _to_float(value):
+    """Best-effort float parse; returns None for blanks/None/non-numeric."""
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _price_cents(market: dict, dollars_key: str, legacy_key: str):
+    """Kalshi switched market data to *_dollars fields (0-1 decimals).
+    Downstream code expects prices in cents (0-100), so convert dollars*100.
+    Falls back to the legacy cent field if the dollars field is absent."""
+    dollars = _to_float(market.get(dollars_key))
+    if dollars is not None:
+        return round(dollars * 100, 4)
+    return _to_float(market.get(legacy_key))
+
+
+def _first_float(market: dict, *keys):
+    """Return the first key that parses to a float (handles *_fp / legacy)."""
+    for key in keys:
+        parsed = _to_float(market.get(key))
+        if parsed is not None:
+            return parsed
+    return None
+
+
 class MarketDetailsProcessor:
     def __init__(self):
         self.data_dir = "historical_data"
@@ -79,23 +109,23 @@ class MarketDetailsProcessor:
                     'notional_value': market.get('notional_value'),
                     'tick_size': market.get('tick_size'),
                     
-                    # Current pricing
-                    'yes_bid': market.get('yes_bid'),
-                    'yes_ask': market.get('yes_ask'),
-                    'no_bid': market.get('no_bid'),
-                    'no_ask': market.get('no_ask'),
-                    'last_price': market.get('last_price'),
+                    # Current pricing (cents; Kalshi now sends *_dollars 0-1)
+                    'yes_bid': _price_cents(market, 'yes_bid_dollars', 'yes_bid'),
+                    'yes_ask': _price_cents(market, 'yes_ask_dollars', 'yes_ask'),
+                    'no_bid': _price_cents(market, 'no_bid_dollars', 'no_bid'),
+                    'no_ask': _price_cents(market, 'no_ask_dollars', 'no_ask'),
+                    'last_price': _price_cents(market, 'last_price_dollars', 'last_price'),
                     
                     # Historical pricing
-                    'previous_yes_bid': market.get('previous_yes_bid'),
-                    'previous_yes_ask': market.get('previous_yes_ask'),
-                    'previous_price': market.get('previous_price'),
+                    'previous_yes_bid': _price_cents(market, 'previous_yes_bid_dollars', 'previous_yes_bid'),
+                    'previous_yes_ask': _price_cents(market, 'previous_yes_ask_dollars', 'previous_yes_ask'),
+                    'previous_price': _price_cents(market, 'previous_price_dollars', 'previous_price'),
                     
                     # Trading metrics
-                    'volume': market.get('volume'),
-                    'volume_24h': market.get('volume_24h'),
-                    'liquidity': market.get('liquidity'),
-                    'open_interest': market.get('open_interest'),
+                    'volume': _first_float(market, 'volume_fp', 'volume'),
+                    'volume_24h': _first_float(market, 'volume_24h_fp', 'volume_24h'),
+                    'liquidity': _first_float(market, 'liquidity_dollars', 'liquidity'),
+                    'open_interest': _first_float(market, 'open_interest_fp', 'open_interest'),
                     
                     # Additional attributes
                     'result': market.get('result'),
