@@ -17,11 +17,18 @@ python webapp/server.py
 ```
 
 That's enough to browse the data. The **Refresh** button (and the scheduler)
-re-run the full collection + matching pipeline, which additionally needs the
-root deps and your Kalshi credentials:
+re-run the collection + matching pipeline. There are two modes:
+
+- **lite** (default) — collection + a **TF-IDF** matcher. No PyTorch, so it runs
+  on a small/free host. This is what the Refresh button triggers.
+- **full** — collection + the **SBERT** matcher (heavier, slightly better on
+  paraphrases). Trigger with `POST /api/refresh?mode=full`.
+
+Either way, a refresh needs the data-collection deps + your Kalshi credentials
+(and `full` additionally needs torch / sentence-transformers):
 
 ```bash
-pip install -r requirements.txt          # torch / sentence-transformers / etc.
+pip install -r requirements.txt          # full set incl. torch (only needed for SBERT)
 cp kalshi_pipeline/.env.example kalshi_pipeline/.env   # then add your key
 ```
 
@@ -31,7 +38,8 @@ cp kalshi_pipeline/.env.example kalshi_pipeline/.env   # then add your key
 |----------|-----------------|
 | `GET /api/matches?min=0.9&q=fed&sort=gap&limit=300` | matched pairs as JSON |
 | `GET /api/stats` | totals, source file, last-updated, refresh status |
-| `POST /api/refresh` | kicks off a pipeline re-run in the background |
+| `POST /api/refresh?mode=lite` | kicks off a TF-IDF (no-PyTorch) re-run in the background |
+| `POST /api/refresh?mode=full` | same, but uses the SBERT matcher |
 
 ## Keep it online 24/7
 
@@ -48,11 +56,13 @@ uvicorn server:app --app-dir webapp --host 0.0.0.0 --port $PORT
 ```
 
 ### Auto-refresh on the host
-Re-running the pipeline needs the heavy ML deps and Kalshi creds, so it's off by
-default on a light host. To enable it once those are in place, set:
+The scheduler is off by default. To enable it once collection deps + Kalshi creds
+are in place, set:
 
 - `REFRESH_HOURS=12` — re-run every 12 hours
 - `REFRESH_ON_START=1` — also run once at boot
+- `REFRESH_MODE=lite` (default) or `full` — which matcher the scheduler uses
 
+The scheduled job defaults to **lite** so it stays light enough for free tiers.
 If a refresh can't run (e.g. no credentials), the dashboard just keeps serving
 the last good data and shows a small notice.

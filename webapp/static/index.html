@@ -210,7 +210,8 @@
       debounce(loadMatches);
     });
     $('refresh-btn').addEventListener('click', async () => {
-      await fetch('/api/refresh', { method: 'POST' });
+      // Lite (TF-IDF) refresh — no PyTorch, so it works on a small host.
+      await fetch('/api/refresh?mode=lite', { method: 'POST' });
       loadStats();
     });
 

@@ -45,20 +45,26 @@ app.add_middleware(
 
 # ---- pipeline refresh state ------------------------------------------------
 _refresh_lock = threading.Lock()
-_refresh_state = {"running": False, "last_started": None, "last_finished": None,
-                  "last_status": "idle", "last_error": None}
+_refresh_state = {"running": False, "mode": None, "last_started": None,
+                  "last_finished": None, "last_status": "idle", "last_error": None}
 
 
-def _run_pipeline() -> None:
-    """Re-run the full collection + matching pipeline in a background thread."""
+def _run_pipeline(lite: bool = True) -> None:
+    """Re-run the collection + matching pipeline in a background thread.
+
+    lite=True uses the TF-IDF matcher (no PyTorch) so it works on a small host.
+    lite=False uses the heavier SBERT matcher.
+    """
     if not _refresh_lock.acquire(blocking=False):
         return  # a refresh is already in progress
     try:
+        cmd = [sys.executable, "pipeline_all.py"] + (["--lite"] if lite else [])
         _refresh_state.update(running=True, last_status="running",
+                              mode="lite" if lite else "full",
                               last_started=datetime.now(timezone.utc).isoformat(),
                               last_error=None)
         proc = subprocess.run(
-            [sys.executable, "pipeline_all.py"],
+            cmd,
             cwd=str(REPO_ROOT),
             capture_output=True, text=True, timeout=60 * 90,
         )
@@ -76,19 +82,24 @@ def _run_pipeline() -> None:
         _refresh_lock.release()
 
 
-def _scheduler_loop(interval_hours: float) -> None:
+def _scheduler_loop(interval_hours: float, lite: bool = True) -> None:
     while True:
         time.sleep(interval_hours * 3600)
-        _run_pipeline()
+        _run_pipeline(lite=lite)
+
+
+def _refresh_is_lite() -> bool:
+    # Default to the light TF-IDF path; set REFRESH_MODE=full for SBERT.
+    return os.getenv("REFRESH_MODE", "lite").lower() != "full"
 
 
 @app.on_event("startup")
 def _startup() -> None:
     if os.getenv("REFRESH_ON_START", "0") == "1":
-        threading.Thread(target=_run_pipeline, daemon=True).start()
+        threading.Thread(target=_run_pipeline, kwargs={"lite": _refresh_is_lite()}, daemon=True).start()
     hours = float(os.getenv("REFRESH_HOURS", "12") or 0)
     if hours > 0:
-        threading.Thread(target=_scheduler_loop, args=(hours,), daemon=True).start()
+        threading.Thread(target=_scheduler_loop, args=(hours, _refresh_is_lite()), daemon=True).start()
 
 
 # ---- API -------------------------------------------------------------------
@@ -110,11 +121,12 @@ def api_stats():
 
 
 @app.post("/api/refresh")
-def api_refresh():
+def api_refresh(mode: str = Query("lite")):
     if _refresh_state["running"]:
         return JSONResponse({"ok": False, "message": "A refresh is already running."}, status_code=409)
-    threading.Thread(target=_run_pipeline, daemon=True).start()
-    return {"ok": True, "message": "Pipeline refresh started."}
+    lite = mode.lower() != "full"
+    threading.Thread(target=_run_pipeline, kwargs={"lite": lite}, daemon=True).start()
+    return {"ok": True, "message": f"Pipeline refresh started ({'lite/TF-IDF' if lite else 'full/SBERT'})."}
 
 
 # ---- static dashboard ------------------------------------------------------

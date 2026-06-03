@@ -20,8 +20,11 @@ _cache: dict = {"path": None, "mtime": None, "df": None}
 
 
 def latest_matches_path() -> Path:
-    """Newest similar_events_sbert_*.csv, or the bundled sample as a fallback."""
-    files = sorted(glob.glob(str(SIMILAR_DIR / "similar_events_sbert_*.csv")))
+    """Newest similar_events_*.csv (SBERT or TF-IDF), or the bundled sample."""
+    files = sorted(
+        glob.glob(str(SIMILAR_DIR / "similar_events_*.csv")),
+        key=lambda p: os.path.getmtime(p),
+    )
     if files:
         return Path(files[-1])
     return SAMPLE_CSV

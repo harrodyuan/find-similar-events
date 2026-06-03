@@ -68,8 +68,13 @@ def copy_processed_data(date_str):
         else:
             logger.warning(f"Source file not found: {paths['source']}")
             
-def run_pipeline():
-    """Run the complete market data pipeline."""
+def run_pipeline(matcher_script="find_similar_events.py"):
+    """Run the complete market data pipeline.
+
+    matcher_script selects the similarity step:
+      - find_similar_events.py       (SBERT, needs PyTorch)
+      - find_similar_events_lite.py  (TF-IDF, no PyTorch — host-friendly)
+    """
     date_today = datetime.now().strftime('%Y%m%d')
     
     # Step 1: Create directories
@@ -77,12 +82,12 @@ def run_pipeline():
     
     # Step 2: Run Kalshi Pipeline
     logger.info("Running Kalshi pipeline...")
-    if not run_subprocess(["python", "pipeline_all_kalshi.py"], cwd="./kalshi_pipeline"):
+    if not run_subprocess([sys.executable, "pipeline_all_kalshi.py"], cwd="./kalshi_pipeline"):
         return
     
     # Step 3: Run Polymarket Pipeline
     logger.info("Running Polymarket pipeline...")
-    if not run_subprocess(["python", "pipeline_all_poly.py"], cwd="./polymarket_pipeline"):
+    if not run_subprocess([sys.executable, "pipeline_all_poly.py"], cwd="./polymarket_pipeline"):
         return
     
     # Step 4: Copy processed data
@@ -90,9 +95,9 @@ def run_pipeline():
     copy_processed_data(date_today)
     
     # Step 5: Run similarity analysis
-    logger.info("Running similarity analysis...")
+    logger.info(f"Running similarity analysis ({matcher_script})...")
     if not run_subprocess(
-        ["python", "find_similar_events.py"], 
+        [sys.executable, matcher_script],
         cwd="./similarity_analysis"
     ):
         return
@@ -101,10 +106,12 @@ def run_pipeline():
 
 if __name__ == "__main__":
     start_time = datetime.now()
-    logger.info("Starting complete market data pipeline...")
+    lite = "--lite" in sys.argv
+    matcher = "find_similar_events_lite.py" if lite else "find_similar_events.py"
+    logger.info(f"Starting complete market data pipeline ({'lite/TF-IDF' if lite else 'SBERT'})...")
     
     try:
-        run_pipeline()
+        run_pipeline(matcher_script=matcher)
     except Exception as e:
         logger.error(f"Pipeline failed with error: {str(e)}")
     
