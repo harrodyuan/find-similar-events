@@ -12,6 +12,10 @@ It pulls every open market from both platforms and uses a sentence-embedding mod
 
 One honest note before you get excited: this is for research and learning, not financial advice. A lot of those price gaps quietly disappear once you account for fees, slippage, and how each platform settles — and these markets may be restricted where you live. Trade at your own risk.
 
+<!-- SCREENSHOT: drop a run screenshot or GIF at docs/demo.png and uncomment the two lines below. -->
+<!-- <p align="center"><img src="docs/demo.png" alt="Matched Kalshi/Polymarket events" width="800"></p> -->
+<!-- <p align="center"><em>A run matching open Kalshi and Polymarket markets by question similarity.</em></p> -->
+
 ## How it works
 
 ```
