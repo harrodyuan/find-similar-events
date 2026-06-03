@@ -45,6 +45,19 @@
       </div>
     </header>
 
+    <!-- Tabs -->
+    <div class="flex items-center gap-2 mb-6 border-b border-slate-800">
+      <button id="tab-matches" data-tab="matches" class="tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-sky-500 text-white">
+        Matched events
+      </button>
+      <button id="tab-live" data-tab="live" class="tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5">
+        <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>
+        Live arbitrage
+      </button>
+    </div>
+
+    <!-- ===================== MATCHES VIEW ===================== -->
+    <div id="view-matches">
     <!-- Stat chips -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
       <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
@@ -95,6 +108,53 @@
       <i data-lucide="inbox" class="w-10 h-10 mx-auto mb-3"></i>
       <p>No matches at this similarity level. Try lowering the threshold or clearing the search.</p>
     </div>
+    </div><!-- /view-matches -->
+
+    <!-- ===================== LIVE ARBITRAGE VIEW ===================== -->
+    <div id="view-live" class="hidden">
+      <!-- Live stat chips -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+          <div class="text-2xl font-bold text-white" id="live-priced">—</div>
+          <div class="text-xs text-slate-400 mt-1">Pairs priced live</div>
+        </div>
+        <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+          <div class="text-2xl font-bold text-emerald-400" id="live-arbs">—</div>
+          <div class="text-xs text-slate-400 mt-1">Positive-edge arbs</div>
+        </div>
+        <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+          <div class="text-2xl font-bold text-emerald-400" id="live-best">—</div>
+          <div class="text-xs text-slate-400 mt-1">Best edge</div>
+        </div>
+        <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+          <div class="text-sm font-semibold text-white" id="live-updated">—</div>
+          <div class="text-xs text-slate-400 mt-1">Last priced</div>
+        </div>
+      </div>
+
+      <!-- Live controls -->
+      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4 mb-6 flex flex-wrap items-center gap-4">
+        <div class="relative flex-1 min-w-[200px]">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
+          <input id="live-search" type="text" placeholder="Search live arbs…"
+            class="w-full rounded-lg bg-slate-950 border border-slate-700 pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
+        </div>
+        <label class="flex items-center gap-2 text-sm text-slate-400">
+          <input id="live-arbs-only" type="checkbox" class="accent-emerald-500" checked />
+          Positive edge only
+        </label>
+        <button id="live-refresh-btn" class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i><span>Refresh prices</span>
+        </button>
+      </div>
+
+      <div id="live-banner" class="hidden rounded-lg border border-sky-700/40 bg-sky-900/20 text-sky-300 px-4 py-2 text-sm mb-4"></div>
+      <div id="live-results" class="space-y-3"></div>
+      <div id="live-empty" class="hidden text-center text-slate-500 py-16">
+        <i data-lucide="inbox" class="w-10 h-10 mx-auto mb-3"></i>
+        <p>No live prices yet. Hit “Refresh prices”, or the matcher hasn’t produced token ids for these pairs.</p>
+      </div>
+    </div><!-- /view-live -->
 
     <footer class="text-center text-xs text-slate-600 mt-10">
       Research tool — not financial advice. Price gaps often vanish after fees, slippage &amp; settlement.
@@ -200,6 +260,98 @@
       } catch (e) { /* ignore */ }
     }
 
+    // ===================== LIVE ARBITRAGE =====================
+    let liveItems = [];
+
+    const cents = (x) => x == null ? '—' : (x * 100).toFixed(1) + '¢';
+    const edgePct = (x) => x == null ? '—' : (x * 100).toFixed(1) + '%';
+
+    function livePriceBlock(accent, label, yesAsk, noAsk, mid) {
+      return `
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-semibold ${accent} mb-1">${label}</div>
+          <div class="text-xs text-slate-400">mid <span class="font-mono text-slate-200">${cents(mid)}</span></div>
+          <div class="text-xs text-slate-500 mt-0.5">YES ask <span class="font-mono text-slate-300">${cents(yesAsk)}</span> · NO ask <span class="font-mono text-slate-300">${cents(noAsk)}</span></div>
+        </div>`;
+    }
+
+    function renderLive() {
+      const el = $('live-results');
+      el.innerHTML = '';
+      $('live-empty').classList.toggle('hidden', liveItems.length > 0);
+
+      const arbs = liveItems.filter(x => x.arb_edge != null && x.arb_edge > 0);
+      $('live-arbs').textContent = arbs.length.toLocaleString();
+      const best = liveItems.reduce((m, x) => (x.arb_edge != null && x.arb_edge > m ? x.arb_edge : m), -Infinity);
+      $('live-best').textContent = isFinite(best) ? edgePct(best) : '—';
+
+      for (const it of liveItems) {
+        const hasArb = it.arb_edge != null && it.arb_edge > 0;
+        const edgeBadge = it.arb_edge == null ? '' : `
+          <span class="px-2 py-1 rounded-md border text-xs font-bold ${hasArb ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40' : 'bg-slate-500/10 text-slate-400 border-slate-600/30'}">
+            ${it.arb_edge > 0 ? '+' : ''}${edgePct(it.arb_edge)}</span>`;
+        const div = document.createElement('div');
+        div.className = `card-hover rounded-xl border ${hasArb ? 'border-emerald-700/40 bg-emerald-900/10' : 'border-slate-800 bg-slate-900/50'} p-4`;
+        div.innerHTML = `
+          <div class="flex items-center gap-3 mb-2">
+            <span class="text-sm text-slate-200 truncate flex-1" title="${(it.kalshi_title||'').replace(/"/g,'&quot;')}">${it.kalshi_title || it.kalshi_ticker}</span>
+            <span class="text-[10px] text-slate-500 shrink-0">sim ${it.similarity.toFixed(3)}</span>
+          </div>
+          <div class="flex items-center gap-4">
+            ${livePriceBlock('text-sky-400', 'KALSHI', it.kalshi_yes_ask, it.kalshi_no_ask, it.kalshi_mid)}
+            <div class="flex flex-col items-center shrink-0 px-2 text-center">
+              ${edgeBadge}
+              <span class="text-[10px] text-slate-500 mt-1">${hasArb ? 'lock-$1 edge' : (it.arb_edge==null?'no book':'no edge')}</span>
+              ${hasArb ? `<span class="text-[11px] text-slate-400 mt-1">${it.arb_direction}</span><span class="text-[10px] text-slate-500">~${(it.arb_size||0).toLocaleString()} contracts</span>` : ''}
+              <span class="text-xs mt-1 text-slate-500">Δmid ${it.mid_gap==null?'—':pp(it.mid_gap)+'pp'}</span>
+            </div>
+            ${livePriceBlock('text-purple-400', 'POLYMARKET', it.poly_yes_ask, it.poly_no_ask, it.poly_mid)}
+          </div>`;
+        el.appendChild(div);
+      }
+      lucide.createIcons();
+    }
+
+    async function loadLive() {
+      const params = new URLSearchParams({ sort: 'edge', limit: 300 });
+      if ($('live-arbs-only').checked) params.set('min_edge', '0.0001');
+      const q = $('live-search').value.trim();
+      if (q) params.set('q', q);
+      const data = await fetch('/api/live?' + params).then(r => r.json());
+      liveItems = data.items || [];
+      const st = data.status || {};
+      $('live-priced').textContent = (st.cached || 0).toLocaleString();
+      $('live-updated').textContent = st.last_finished ? new Date(st.last_finished).toLocaleTimeString() : '—';
+      const banner = $('live-banner');
+      const btn = $('live-refresh-btn');
+      if (st.running) {
+        banner.classList.remove('hidden');
+        banner.textContent = '⏳ Fetching live order books…';
+        btn.disabled = true;
+      } else {
+        btn.disabled = false;
+        const mins = Math.round((st.interval_seconds || 1800) / 60);
+        banner.classList.remove('hidden');
+        banner.textContent = `Top ${st.top_n} matched pairs (similarity ≥ ${st.min_similarity}), auto-refreshed every ${mins} min. Read-only public order books — verify fees & slippage before trading.`;
+      }
+      renderLive();
+    }
+
+    // --- tabs ---
+    let activeTab = 'matches';
+    let liveTimer = null;
+    function switchTab(tab) {
+      activeTab = tab;
+      $('view-matches').classList.toggle('hidden', tab !== 'matches');
+      $('view-live').classList.toggle('hidden', tab !== 'live');
+      $('tab-matches').className = 'tab-btn px-4 py-2 text-sm font-semibold border-b-2 ' + (tab === 'matches' ? 'border-sky-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-200');
+      $('tab-live').className = 'tab-btn px-4 py-2 text-sm font-semibold border-b-2 flex items-center gap-1.5 ' + (tab === 'live' ? 'border-emerald-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-200');
+      if (tab === 'live') {
+        loadLive();
+        if (!liveTimer) liveTimer = setInterval(() => { if (activeTab === 'live') loadLive(); }, 30000);
+      }
+    }
+
     // --- events ---
     let t;
     const debounce = (fn) => { clearTimeout(t); t = setTimeout(fn, 300); };
@@ -213,6 +365,15 @@
       // Lite (TF-IDF) refresh — no PyTorch, so it works on a small host.
       await fetch('/api/refresh?mode=lite', { method: 'POST' });
       loadStats();
+    });
+    $('tab-matches').addEventListener('click', () => switchTab('matches'));
+    $('tab-live').addEventListener('click', () => switchTab('live'));
+    $('live-search').addEventListener('input', () => debounce(loadLive));
+    $('live-arbs-only').addEventListener('change', loadLive);
+    $('live-refresh-btn').addEventListener('click', async () => {
+      $('live-refresh-btn').disabled = true;
+      await fetch('/api/live/refresh', { method: 'POST' });
+      setTimeout(loadLive, 1500);
     });
 
     // --- init ---

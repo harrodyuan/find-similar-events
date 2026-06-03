@@ -10,8 +10,11 @@ Run locally:
 
 Env vars:
     PORT                 port to bind (default 8000)
-    REFRESH_HOURS        auto-refresh interval in hours (default 12, 0 = off)
-    REFRESH_ON_START     run the pipeline once on startup (default 0)
+    REFRESH_HOURS        matcher auto-refresh interval in hours (default 12, 0 = off)
+    REFRESH_ON_START     run the matcher pipeline once on startup (default 0)
+    LIVE_REFRESH_SECONDS live price-refresh interval (default 1800; 0 = off)
+    LIVE_TOP_N           how many top-similarity pairs to live-price (default 120)
+    LIVE_MIN_SIM         min similarity to live-price a pair (default 0.9)
 """
 
 from __future__ import annotations
@@ -30,6 +33,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 import data as data_module
+import live_prices
 
 WEBAPP_DIR = Path(__file__).resolve().parent
 REPO_ROOT = WEBAPP_DIR.parent
@@ -101,6 +105,13 @@ def _startup() -> None:
     if hours > 0:
         threading.Thread(target=_scheduler_loop, args=(hours, _refresh_is_lite()), daemon=True).start()
 
+    # Live price tier: re-prices the top matched pairs on a short interval so the
+    # dashboard shows a fresh arbitrage edge without re-running the matcher.
+    if int(os.getenv("LIVE_REFRESH_SECONDS", "1800") or 0) > 0:
+        # Prime the cache once immediately, then refresh on the interval.
+        threading.Thread(target=live_prices.refresh_once, daemon=True).start()
+        live_prices.start_background()
+
 
 # ---- API -------------------------------------------------------------------
 @app.get("/api/matches")
@@ -127,6 +138,31 @@ def api_refresh(mode: str = Query("lite")):
     lite = mode.lower() != "full"
     threading.Thread(target=_run_pipeline, kwargs={"lite": lite}, daemon=True).start()
     return {"ok": True, "message": f"Pipeline refresh started ({'lite/TF-IDF' if lite else 'full/SBERT'})."}
+
+
+# ---- live prices (top matched pairs, refreshed on a short interval) ---------
+@app.get("/api/live")
+def api_live(
+    min_edge: float = Query(None),
+    q: str = Query(""),
+    sort: str = Query("edge"),
+    limit: int = Query(200, ge=1, le=2000),
+):
+    return {"status": live_prices.status(),
+            "items": live_prices.get_live(min_edge=min_edge, q=q, sort=sort, limit=limit)}
+
+
+@app.get("/api/live/status")
+def api_live_status():
+    return live_prices.status()
+
+
+@app.post("/api/live/refresh")
+def api_live_refresh():
+    if live_prices.status()["running"]:
+        return JSONResponse({"ok": False, "message": "A live refresh is already running."}, status_code=409)
+    threading.Thread(target=live_prices.refresh_once, daemon=True).start()
+    return {"ok": True, "message": "Live price refresh started."}
 
 
 # ---- static dashboard ------------------------------------------------------
