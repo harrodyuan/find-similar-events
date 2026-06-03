@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kalshi × Polymarket — Same Event Finder</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: { fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] } } }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body { background: radial-gradient(1200px 600px at 20% -10%, #1e293b 0%, #0b1120 45%, #070b14 100%); }
+    .card-hover { transition: transform .15s ease, border-color .15s ease; }
+    .card-hover:hover { transform: translateY(-2px); border-color: rgb(71 85 105); }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+  </style>
+</head>
+<body class="font-sans text-slate-200 min-h-screen">
+  <div class="max-w-6xl mx-auto px-4 py-8">
+
+    <!-- Header -->
+    <header class="flex flex-wrap items-start justify-between gap-4 mb-8">
+      <div>
+        <h1 class="text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
+          <i data-lucide="arrow-left-right" class="w-7 h-7 text-sky-400"></i>
+          Kalshi <span class="text-slate-500">×</span> Polymarket
+        </h1>
+        <p class="text-slate-400 mt-1">The same real-world event, found on both platforms.</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="text-right text-xs text-slate-400 leading-tight">
+          <div id="source-label">—</div>
+          <div id="updated-label" class="text-slate-500">—</div>
+        </div>
+        <button id="refresh-btn" class="inline-flex items-center gap-2 rounded-lg bg-sky-600 hover:bg-sky-500 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i><span>Refresh</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Stat chips -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+        <div class="text-2xl font-bold text-white" id="stat-total">—</div>
+        <div class="text-xs text-slate-400 mt-1">Total matched pairs</div>
+      </div>
+      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+        <div class="text-2xl font-bold text-white" id="stat-shown">—</div>
+        <div class="text-xs text-slate-400 mt-1">Showing now</div>
+      </div>
+      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+        <div class="text-2xl font-bold text-emerald-400" id="stat-identical">—</div>
+        <div class="text-xs text-slate-400 mt-1">Near-identical (≥ 0.99)</div>
+      </div>
+      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+        <div class="text-2xl font-bold text-amber-400" id="stat-gap">—</div>
+        <div class="text-xs text-slate-400 mt-1">Biggest price gap (pp)</div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4 mb-6 flex flex-wrap items-center gap-4">
+      <div class="relative flex-1 min-w-[200px]">
+        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
+        <input id="search" type="text" placeholder="Search events (e.g. election, bitcoin, fed)…"
+          class="w-full rounded-lg bg-slate-950 border border-slate-700 pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-sky-500" />
+      </div>
+      <div class="flex items-center gap-2 text-sm">
+        <label class="text-slate-400">Min similarity</label>
+        <input id="min-sim" type="range" min="0.7" max="1" step="0.01" value="0.9" class="accent-sky-500" />
+        <span id="min-sim-val" class="font-mono text-sky-400 w-10">0.90</span>
+      </div>
+      <div class="flex items-center gap-2 text-sm">
+        <label class="text-slate-400">Sort</label>
+        <select id="sort" class="rounded-lg bg-slate-950 border border-slate-700 px-2 py-2 text-sm focus:outline-none focus:border-sky-500">
+          <option value="similarity">Similarity</option>
+          <option value="gap">Price gap</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Refresh banner -->
+    <div id="refresh-banner" class="hidden rounded-lg border border-amber-700/40 bg-amber-900/20 text-amber-300 px-4 py-2 text-sm mb-4"></div>
+
+    <!-- Results -->
+    <div id="results" class="space-y-3"></div>
+    <div id="empty" class="hidden text-center text-slate-500 py-16">
+      <i data-lucide="inbox" class="w-10 h-10 mx-auto mb-3"></i>
+      <p>No matches at this similarity level. Try lowering the threshold or clearing the search.</p>
+    </div>
+
+    <footer class="text-center text-xs text-slate-600 mt-10">
+      Research tool — not financial advice. Price gaps often vanish after fees, slippage &amp; settlement.
+    </footer>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let matches = [];
+
+    const pct = (x) => x == null ? '—' : (x * 100).toFixed(0) + '%';
+    const pp = (x) => x == null ? '—' : (x * 100).toFixed(1);
+
+    function simColor(s) {
+      if (s >= 0.99) return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
+      if (s >= 0.95) return 'bg-sky-500/15 text-sky-300 border-sky-500/30';
+      return 'bg-slate-500/15 text-slate-300 border-slate-500/30';
+    }
+    function gapColor(g) {
+      if (g == null) return 'text-slate-500';
+      if (g >= 0.10) return 'text-amber-400';
+      if (g >= 0.05) return 'text-yellow-500';
+      return 'text-slate-400';
+    }
+
+    function priceBlock(accent, label, title, prob, url) {
+      return `
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs font-semibold ${accent}">${label}</span>
+            <a href="${url}" target="_blank" rel="noopener" class="text-slate-500 hover:text-slate-300">
+              <i data-lucide="external-link" class="w-3.5 h-3.5"></i></a>
+          </div>
+          <div class="text-sm text-slate-200 truncate" title="${title.replace(/"/g,'&quot;')}">${title || '—'}</div>
+          <div class="text-xs text-slate-400 mt-1">YES <span class="font-mono text-slate-200">${pct(prob)}</span></div>
+        </div>`;
+    }
+
+    function render() {
+      const el = $('results');
+      el.innerHTML = '';
+      $('empty').classList.toggle('hidden', matches.length > 0);
+      $('stat-shown').textContent = matches.length.toLocaleString();
+
+      const ident = matches.filter(m => m.similarity >= 0.99).length;
+      $('stat-identical').textContent = ident.toLocaleString();
+      const gaps = matches.map(m => m.gap).filter(g => g != null);
+      $('stat-gap').textContent = gaps.length ? pp(Math.max(...gaps)) : '—';
+
+      for (const m of matches) {
+        const div = document.createElement('div');
+        div.className = 'card-hover rounded-xl border border-slate-800 bg-slate-900/50 p-4 flex items-center gap-4';
+        div.innerHTML = `
+          ${priceBlock('text-sky-400', 'KALSHI', m.kalshi_title, m.kalshi_prob, m.kalshi_url)}
+          <div class="flex flex-col items-center shrink-0 px-2">
+            <span class="px-2 py-1 rounded-md border text-xs font-bold ${simColor(m.similarity)}">${m.similarity.toFixed(3)}</span>
+            <span class="text-[10px] text-slate-500 mt-1">similarity</span>
+            <span class="text-xs mt-2 ${gapColor(m.gap)}">Δ ${m.gap==null?'—':pp(m.gap)+'pp'}</span>
+          </div>
+          ${priceBlock('text-purple-400', 'POLYMARKET', m.poly_title, m.poly_prob, m.poly_url)}`;
+        el.appendChild(div);
+      }
+      lucide.createIcons();
+    }
+
+    async function loadMatches() {
+      const params = new URLSearchParams({
+        min: $('min-sim').value,
+        q: $('search').value.trim(),
+        sort: $('sort').value,
+        limit: 300,
+      });
+      const res = await fetch('/api/matches?' + params);
+      matches = await res.json();
+      render();
+    }
+
+    async function loadStats() {
+      try {
+        const s = await fetch('/api/stats').then(r => r.json());
+        $('stat-total').textContent = (s.total_pairs || 0).toLocaleString();
+        $('source-label').textContent = s.is_sample ? 'Sample data' : ('Live: ' + s.source_file);
+        $('source-label').className = s.is_sample ? 'text-amber-400' : 'text-emerald-400';
+        $('updated-label').textContent = s.last_updated ? ('updated ' + new Date(s.last_updated).toLocaleString()) : '';
+
+        const r = s.refresh || {};
+        const banner = $('refresh-banner');
+        const btn = $('refresh-btn');
+        if (r.running) {
+          banner.classList.remove('hidden');
+          banner.textContent = '⏳ Re-running the pipeline… this can take several minutes.';
+          btn.disabled = true;
+        } else {
+          btn.disabled = false;
+          if (r.last_status === 'failed') {
+            banner.classList.remove('hidden');
+            banner.className = 'rounded-lg border border-red-700/40 bg-red-900/20 text-red-300 px-4 py-2 text-sm mb-4';
+            banner.textContent = '⚠️ Last refresh failed (often missing Kalshi credentials on the host). Showing the most recent data.';
+          } else {
+            banner.classList.add('hidden');
+          }
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    // --- events ---
+    let t;
+    const debounce = (fn) => { clearTimeout(t); t = setTimeout(fn, 300); };
+    $('search').addEventListener('input', () => debounce(loadMatches));
+    $('sort').addEventListener('change', loadMatches);
+    $('min-sim').addEventListener('input', () => {
+      $('min-sim-val').textContent = parseFloat($('min-sim').value).toFixed(2);
+      debounce(loadMatches);
+    });
+    $('refresh-btn').addEventListener('click', async () => {
+      await fetch('/api/refresh', { method: 'POST' });
+      loadStats();
+    });
+
+    // --- init ---
+    loadStats();
+    loadMatches();
+    setInterval(loadStats, 15000);
+    lucide.createIcons();
+  </script>
+</body>
+</html>

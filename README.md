@@ -141,6 +141,20 @@ The matcher is title-driven, so identical questions land at ~1.0 and close-but-n
 
 ---
 
+## Live dashboard
+
+There's a small web app in [`webapp/`](webapp) that shows the matches in the browser — search, filter by similarity, sort by price gap, and links out to each platform. It's one FastAPI service (serves the API *and* the UI) and can re-run the pipeline on a schedule so a hosted copy stays fresh.
+
+```bash
+pip install -r webapp/requirements.txt
+python webapp/server.py
+# http://localhost:8000
+```
+
+It starts on bundled sample data and switches to your real results once you've run the pipeline. See [`webapp/README.md`](webapp/README.md) for the API and one-step Render deploy.
+
+---
+
 ## Notes & tuning
 
 - **Similarity threshold:** default is `0.70` in `similarity_analysis/find_similar_events.py`. Raise it (e.g. `0.90`) for stricter, higher-precision matches.

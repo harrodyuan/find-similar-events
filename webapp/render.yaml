@@ -1,0 +1,15 @@
+# One-click-ish deploy to Render (https://render.com).
+# Push this repo to GitHub, then "New + > Blueprint" and point it at the repo.
+services:
+  - type: web
+    name: kalshi-poly-matcher
+    runtime: python
+    plan: free
+    buildCommand: pip install -r webapp/requirements.txt
+    startCommand: uvicorn server:app --app-dir webapp --host 0.0.0.0 --port $PORT
+    envVars:
+      # Auto-refresh re-runs the full pipeline (needs the root requirements +
+      # Kalshi creds). Leave at 0 on a light host; set to e.g. 12 once the full
+      # environment is available.
+      - key: REFRESH_HOURS
+        value: "0"

@@ -1,0 +1,7 @@
+kalshi_ticker,kalshi_event_ticker,poly_condition_id,kalshi_title_raw,poly_title_raw,similarity_score,kalshi_yes_bid,kalshi_yes_ask,kalshi_mid_price,kalshi_implied_prob,kalshi_volume,kalshi_days_to_exp,poly_yes_price,poly_no_price,poly_end_date
+PRESBRAZIL-26-HADDAD,PRESBRAZIL-26,0xabc123,Will Fernando Haddad win the 2026 Brazilian presidential election?,Will Fernando Haddad win the 2026 Brazilian presidential election?,1.0,11,14,12,0.12,45200,540,0.09,0.91,2026-10-04
+PRESFR-27-RUFFIN,PRESFR-27,0xdef456,Will François Ruffin win the 2027 French presidential election?,Will François Ruffin win the 2027 French presidential election?,1.0,6,9,7,0.07,18800,900,0.05,0.95,2027-04-23
+TOPCHEF-23-LOUIE,TOPCHEF-23,0xghi789,Will Laurence Louie win Top Chef Season 23?,Will Laurence Louie win Top Chef Season 23?,1.0,33,37,35,0.35,9100,60,0.41,0.59,2026-06-15
+FEDRATE-26JUN,FEDRATE-26JUN,0xjkl012,Will the Fed cut rates at the June 2026 meeting?,Will the Federal Reserve cut interest rates in June 2026?,0.94,52,56,54,0.54,128000,12,0.61,0.39,2026-06-17
+BTC100K-26,BTC100K-26,0xmno345,Will Bitcoin reach $100,000 by end of 2026?,Will BTC hit $100k in 2026?,0.91,71,75,73,0.73,402000,210,0.68,0.32,2026-12-31
+NBA-FINALS-26-CELTICS,NBA-FINALS-26,0xpqr678,Will the Boston Celtics win the 2026 NBA Finals?,Will the Celtics win the 2026 NBA Championship?,0.9,22,26,24,0.24,76000,40,0.27,0.73,2026-06-20
