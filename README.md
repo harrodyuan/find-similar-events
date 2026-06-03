@@ -1,21 +1,16 @@
 # Find Similar Events — Kalshi ↔ Polymarket Market Matcher
 
+[![CI](https://github.com/harrodyuan/find-similar-events/actions/workflows/ci.yml/badge.svg)](https://github.com/harrodyuan/find-similar-events/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
 [![Built with Sentence-BERT](https://img.shields.io/badge/NLP-Sentence--BERT-orange.svg)](https://www.sbert.net/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 
-Find the **same real-world event listed on both [Kalshi](https://kalshi.com) and [Polymarket](https://polymarket.com)**. Prediction markets often list identical questions (elections, sports, economics, crypto) on different platforms at *different prices*. This tool automatically collects every open market from both platforms and uses semantic similarity (Sentence-BERT) to match them up — the starting point for cross-platform analysis and arbitrage research.
+Prediction markets are funny: the exact same question — same election, same game, same coin flip — often shows up on both [Kalshi](https://kalshi.com) and [Polymarket](https://polymarket.com) at different prices. I built this to find those pairs automatically.
 
-> **Example output:** a single run matched markets like *"Will Fernando Haddad win the 2026 Brazilian presidential election?"* on Kalshi to the identical Polymarket question with a 1.000 similarity score.
+It pulls every open market from both platforms and uses a sentence-embedding model (Sentence-BERT) to match the ones that are actually the *same* event. Think of it as the groundwork for cross-platform analysis / arbitrage research — what you do with the matches is up to you.
 
----
-
-## ⚠️ Disclaimer
-
-This project is for **educational and research purposes only**. It is **not** financial advice. Prediction markets carry risk, may be restricted in your jurisdiction, and price differences are not guaranteed to be exploitable after fees, slippage, and settlement rules. Use at your own risk. You are responsible for complying with each platform's Terms of Service.
-
----
+One honest note before you get excited: this is for research and learning, not financial advice. A lot of those price gaps quietly disappear once you account for fees, slippage, and how each platform settles — and these markets may be restricted where you live. Trade at your own risk.
 
 ## How it works
 
@@ -85,7 +80,7 @@ cp polymarket_pipeline/.env.example polymarket_pipeline/.env
 # then edit polymarket_pipeline/.env and set PK
 ```
 
-> 🔒 **Security:** `.env` files and `*.pem` keys are gitignored and must **never** be committed. Only the `.env.example` templates are tracked.
+Your `.env` and `*.pem` files are gitignored, so they won't get committed by accident — only the `.env.example` templates are. Keep it that way.
 
 ### 3. Run
 
@@ -122,13 +117,23 @@ Sample collected/processed data is included so you can see the output format bef
 - [`kalshi_pipeline/historical_data_example/processed_events/`](kalshi_pipeline/historical_data_example/processed_events) — example processed Kalshi events
 - [`kalshi_pipeline/historical_data_example/open_events/`](kalshi_pipeline/historical_data_example/open_events) — raw open-events snapshots
 
-A real run produces near-perfect matches, for example:
+Here's roughly what a full run looks like:
 
-| similarity | Kalshi | Polymarket |
-|-----------|--------|------------|
-| 1.000 | Will Fernando Haddad win the 2026 Brazilian presidential election? | Will Fernando Haddad win the 2026 Brazilian presidential election? |
-| 1.000 | Will François Ruffin win the 2027 French presidential election? | Will François Ruffin win the 2027 French presidential election? |
-| 1.000 | Will Laurence Louie win Top Chef Season 23? | Will Laurence Louie win Top Chef Season 23? |
+```text
+$ python pipeline_all.py
+Running Kalshi pipeline...      collected 6,755 open events -> 56,114 markets
+Running Polymarket pipeline...  1.3M markets pulled -> 38,260 open
+Encoding texts...
+Calculating similarities (chunked)...
+Similar events saved to historical_data/similar_events/similar_events_sbert_20260603.csv
+
+Top matches (similarity = 1.000):
+  Will Fernando Haddad win the 2026 Brazilian presidential election?   (Kalshi == Polymarket)
+  Will François Ruffin win the 2027 French presidential election?      (Kalshi == Polymarket)
+  Will Laurence Louie win Top Chef Season 23?                          (Kalshi == Polymarket)
+```
+
+The matcher is title-driven, so identical questions land at ~1.0 and close-but-not-identical wordings still rank high — that's where the interesting cross-platform cases tend to hide.
 
 ---
 
@@ -148,13 +153,13 @@ A real run produces near-perfect matches, for example:
 
 ## Contributing
 
-Contributions are welcome! Ideas that would help:
+Happy to take PRs. A few things I'd love help with if you're interested:
 
-- Add more platforms (PredictIt, Manifold, etc.)
-- Smarter matching (entity/date extraction, blocking, embeddings other than MiniLM)
-- A fee- and slippage-aware "edge" calculator on top of the matched pairs
+- More platforms (PredictIt, Manifold, …)
+- Better matching — entity/date extraction, candidate blocking, or trying embeddings beyond MiniLM
+- A fee- and slippage-aware "edge" calculator that sits on top of the matched pairs
 
-Open an issue to discuss, or fork and send a PR.
+Open an issue first if it's a big change, otherwise just fork and send it over.
 
 ## License
 

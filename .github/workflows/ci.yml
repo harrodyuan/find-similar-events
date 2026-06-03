@@ -1,0 +1,26 @@
+name: CI
+
+# Lightweight check: make sure everything still compiles on a clean machine.
+# (We don't install the heavy ML deps here — this is just a fast syntax/sanity gate.)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Byte-compile all Python sources
+        run: python -m compileall -q kalshi_pipeline polymarket_pipeline similarity_analysis pipeline_all.py
+
+      - name: Check requirements file is parseable
+        run: python -c "import pathlib; [print(l.strip()) for l in pathlib.Path('requirements.txt').read_text().splitlines() if l.strip() and not l.startswith('#')]"
