@@ -1,0 +1,61 @@
+# Authentication
+private_key.pem
+*.pem
+*key*
+.env
+
+# Collected data
+historical_data/
+collected_data/
+# *.json
+!requirements.json
+
+# playground
+playground/
+
+# Local environment files
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+.venv/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+cmumscf/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Jupyter
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
+
+# Mac specific
+.DS_Store
+.DS_Store?
+._*
