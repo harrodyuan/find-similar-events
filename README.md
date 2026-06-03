@@ -109,6 +109,24 @@ Key columns in the matches file include `kalshi_ticker`, `poly_condition_id`, `k
 
 ---
 
+## Examples
+
+Sample collected/processed data is included so you can see the output format before running anything:
+
+- [`kalshi_pipeline/historical_data_example/processed_markets/`](kalshi_pipeline/historical_data_example/processed_markets) — example standardized Kalshi market CSVs
+- [`kalshi_pipeline/historical_data_example/processed_events/`](kalshi_pipeline/historical_data_example/processed_events) — example processed Kalshi events
+- [`kalshi_pipeline/historical_data_example/open_events/`](kalshi_pipeline/historical_data_example/open_events) — raw open-events snapshots
+
+A real run produces near-perfect matches, for example:
+
+| similarity | Kalshi | Polymarket |
+|-----------|--------|------------|
+| 1.000 | Will Fernando Haddad win the 2026 Brazilian presidential election? | Will Fernando Haddad win the 2026 Brazilian presidential election? |
+| 1.000 | Will François Ruffin win the 2027 French presidential election? | Will François Ruffin win the 2027 French presidential election? |
+| 1.000 | Will Laurence Louie win Top Chef Season 23? | Will Laurence Louie win Top Chef Season 23? |
+
+---
+
 ## Notes & tuning
 
 - **Similarity threshold:** default is `0.70` in `similarity_analysis/find_similar_events.py`. Raise it (e.g. `0.90`) for stricter, higher-precision matches.
@@ -125,7 +143,7 @@ Key columns in the matches file include `kalshi_ticker`, `poly_condition_id`, `k
 
 ## License
 
-See `kalshi_pipeline/LICENCE.txt` / `polymarket_pipeline/LICENCE.txt`. Provided as-is, without warranty.
+[MIT](LICENSE) — provided as-is, without warranty.
 
 ## Author
 
